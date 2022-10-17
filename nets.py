@@ -28,7 +28,7 @@ class Elman:
         # выходной слой
         self.layers.append(np.zeros(output_n))
 
-        # определение
+        # массив весов
         self.weights = []
 
         for i in range(2):
@@ -60,11 +60,11 @@ class Elman:
         deltas.append(delta)
 
         # Ошибка на скрытых слоях
-        for i in range():
-            delta = np.dot(deltas[0], self.weights[i].T) * sigmoid_derivative(self.layers[i])
+        for i in range(3):
+            delta = np.dot(deltas[0][i], self.weights[i].T) * sigmoid_derivative(self.layers[i])
             deltas.insert(0, delta)
 
-        # Update weights
+        # обновляем веса
         for i in range(len(self.weights)):
             layer = np.atleast_2d(self.layers[i])
             delta = np.atleast_2d(deltas[i])
@@ -72,32 +72,7 @@ class Elman:
             self.weights[i] += lrate * dw + momentum * self.dw[i]
             self.dw[i] = dw
 
-        # Return error
-        return (error ** 2).sum()
 
-
-# -----------------------------------------------------------------------------
 if __name__ == '__main__':
+    network = Elman(4, 3, 3)
 
-    # Example 1: learning a simple time serie
-    # -------------------------------------------------------------------------
-    network = Elman(4, 8, 4)
-    samples = np.zeros(6, dtype=[('input', float, 4), ('output', float, 4)])
-    samples[0] = (1, 0, 0, 0), (0, 1, 0, 0)
-    samples[1] = (0, 1, 0, 0), (0, 0, 1, 0)
-    samples[2] = (0, 0, 1, 0), (0, 0, 0, 1)
-    samples[3] = (0, 0, 0, 1), (0, 0, 1, 0)
-    samples[4] = (0, 0, 1, 0), (0, 1, 0, 0)
-    samples[5] = (0, 1, 0, 0), (1, 0, 0, 0)
-
-    print(network.forward(samples['input'][0]))
-
-    # for i in range(5000):
-    #     n = i % samples.size
-    #     print(network.forward(samples['input'][n]))
-    #     network.backward(samples['output'][n])
-    # for i in range(samples.size):
-    #     o = network.backward(samples['input'][i])
-    #     print('Sample %d: %s -> %s' % (i, samples['input'][i], samples['output'][i]))
-    #     print(
-    #         'Network output: %s' % (o == o.max()).astype(float))
