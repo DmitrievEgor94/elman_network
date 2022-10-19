@@ -60,8 +60,8 @@ class Elman:
         deltas.append(delta)
 
         # Ошибка на скрытых слоях
-        for i in range(3):
-            delta = np.dot(deltas[0][i], self.weights[i].T) * sigmoid_derivative(self.layers[i])
+        for i in range(1, 0, -1):
+            delta = np.dot(deltas[0], self.weights[i].T) * sigmoid_derivative(self.layers[i])
             deltas.insert(0, delta)
 
         # обновляем веса
@@ -74,5 +74,4 @@ class Elman:
 
 
 if __name__ == '__main__':
-    network = Elman(4, 3, 3)
-
+    network = Elman(4, 3, 4)
