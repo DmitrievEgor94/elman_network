@@ -1,0 +1,94 @@
+import pandas as pd
+from sklearn import datasets
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.model_selection import train_test_split
+import yaml
+import os
+import numpy as np
+from sklearn.metrics import log_loss
+
+from nets import Elman
+
+
+def load_dataset(file_name):
+    if not os.path.exists(file_name):
+        iris = datasets.load_iris(as_frame=True)
+
+        data = iris.data
+        data['target'] = iris.target
+
+        data.to_excel(file_name, index=False)
+    else:
+        data = pd.read_excel(file_name)
+
+    return data
+
+
+def get_learning_rate_graphs(net_params, train_df, test_df):
+    net = Elman(*net_params)
+
+    learning_rates = np.arange(0.001, 0.3, 0.01).tolist()
+    learning_rates += [2]
+    all_losses = []
+    moments = [0, 0.1]
+
+    folder_to_save_data = 'classification_data/results'
+    for moment in moments:
+        all_losses = []
+
+        for lr in learning_rates:
+            print('learning_rate: ', lr)
+            for i in range(90):
+                for j in range(train_df.shape[0]):
+                    a, b = net.forward(train_df[atrs].iloc[j])
+                    net.backward(train_df['target_one_hot'].iloc[j], lrate=lr, momentum=moment)
+
+            predicts = []
+            losses = []
+
+            for j in range(test_df.shape[0]):
+                a, b = net.forward(test_df[atrs].iloc[j])
+                losses.append(log_loss(y_true=test_df['target_one_hot'].iloc[j], y_pred=b))
+                predicts.append(np.argmax(a))
+
+            all_losses.append(np.mean(losses))
+            print('loss:', np.mean(losses))
+            # print('accuracy:', np.mean(np.array(predicts == test_df['target'])))
+
+        df_lr_losses = pd.DataFrame(zip(learning_rates, all_losses), columns=['learning rate', 'losses'])
+        df_lr_losses.to_excel(f'{folder_to_save_data}/learning_rate_loss_moment_{round(moment, 2)}.xlsx', index=False)
+
+def ge
+
+
+if __name__ == '__main__':
+    params = yaml.load(open('params.yaml'), yaml.FullLoader)
+
+    # установка сида для того, чтобы результаты получались теми же самыми при повторном запуске
+    random_state = params['random_state']
+    np.random.seed(1)
+
+    classification_folder = 'classification_data'
+
+    df = load_dataset(f'{classification_folder}/iris_dataset.xlsx')
+
+    # Кодировка таргета one_hot: 0 - [1, 0, 0], 1 - [0, 1, 0], 2 - [0, 0, 1]
+    label_encoder = LabelBinarizer()
+    one_hot_target = label_encoder.fit_transform(df['target'])
+
+    df.loc[:, 'target_one_hot'] = pd.Series(list(one_hot_target))
+    train_df, test_df = train_test_split(df, test_size=0.2, random_state=random_state)
+    print(train_df.shape, test_df.shape)
+
+    atrs = [col for col in df.columns if col not in ['target', 'target_one_hot']]
+
+    num_atrs = len(atrs)
+    outputs_num = train_df.target.unique().shape[0]
+
+    # get_learning_rate_graphs((num_atrs, (num_atrs + outputs_num)//2, outputs_num), train_df, test_df)
+
+
+
+
+
+
