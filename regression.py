@@ -105,14 +105,15 @@ def get_number_neurons_length_graphs(net_params, train_df, test_df):
 
     folder_to_save_data = 'classification_data/results'
 
-    hidden_layer_length_list = [2, 3, 4, 5, 6, 7, 10, 12, 15, 16, 17, 19, 20]
+    hidden_layer_length_list= [2, 3, 5, 7, 10]
+
 
     for hidden_layer_length in hidden_layer_length_list:
         net = Elman(num_atrs, hidden_layer_length, outputs_num)
 
         print(hidden_layer_length)
 
-        for _ in range(40):
+        for _ in range(90):
             for j in range(train_df.shape[0]):
                 a, b = net.forward(train_df[atrs].iloc[j])
                 net.backward(train_df['target_one_hot'].iloc[j], lrate=learning_rate, momentum=momentum)
@@ -124,78 +125,11 @@ def get_number_neurons_length_graphs(net_params, train_df, test_df):
             losses.append(log_loss(y_true=test_df['target_one_hot'].iloc[j], y_pred=b))
 
         all_losses.append(np.mean(losses))
+
         print('loss:', np.mean(losses))
 
     df_lr_losses = pd.DataFrame(zip(hidden_layer_length_list, all_losses), columns=['hidden layer length', 'losses'])
     df_lr_losses.to_excel(f'{folder_to_save_data}/hidden_layer_length_loss.xlsx', index=False)
-
-
-def get_number_neurons_length_graphs(net_params, train_df, test_df):
-    num_atrs, _, outputs_num = net_params
-
-    learning_rate = 0.1
-    momentum = 0.1
-
-    all_losses = []
-
-    folder_to_save_data = 'classification_data/results'
-
-    hidden_layer_length_list = [2, 3, 4, 5, 6, 7, 10, 12, 15, 16, 17, 19, 20]
-
-    for hidden_layer_length in hidden_layer_length_list:
-        net = Elman(num_atrs, hidden_layer_length, outputs_num)
-
-        print(hidden_layer_length)
-
-        for _ in range(40):
-            for j in range(train_df.shape[0]):
-                a, b = net.forward(train_df[atrs].iloc[j])
-                net.backward(train_df['target_one_hot'].iloc[j], lrate=learning_rate, momentum=momentum)
-
-        losses = []
-
-        for j in range(test_df.shape[0]):
-            a, b = net.forward(test_df[atrs].iloc[j])
-            losses.append(log_loss(y_true=test_df['target_one_hot'].iloc[j], y_pred=b))
-
-        all_losses.append(np.mean(losses))
-        print('loss:', np.mean(losses))
-
-    df_lr_losses = pd.DataFrame(zip(hidden_layer_length_list, all_losses), columns=['hidden layer length', 'losses'])
-    df_lr_losses.to_excel(f'{folder_to_save_data}/hidden_layer_length_loss.xlsx', index=False)
-
-
-def get_iteration_number_graphs(net_params, train_df, test_df):
-    learning_rate = 0.1
-    momentum = 0.1
-
-    all_losses = []
-
-    folder_to_save_data = 'classification_data/results'
-
-    epochs_number = [2, 4, 6, 7, 8, 9, 10, 11, 12] + np.arange(20, 150, 10).tolist()
-
-    for epoch_number in epochs_number:
-        net = Elman(*net_params)
-
-        print(epoch_number)
-
-        for _ in range(epoch_number):
-            for j in range(train_df.shape[0]):
-                net.forward(train_df[atrs].iloc[j])
-                net.backward(train_df['target_one_hot'].iloc[j], lrate=learning_rate, momentum=momentum)
-
-        losses = []
-
-        for j in range(test_df.shape[0]):
-            a, b = net.forward(test_df[atrs].iloc[j])
-            losses.append(log_loss(y_true=test_df['target_one_hot'].iloc[j], y_pred=b))
-
-        all_losses.append(np.mean(losses))
-        print('loss:', np.mean(losses))
-
-    df_losses = pd.DataFrame(zip(epochs_number, all_losses), columns=['epoch number', 'losses'])
-    df_losses.to_excel(f'{folder_to_save_data}/epoch_number_loss.xlsx', index=False)
 
 
 if __name__ == '__main__':
@@ -224,11 +158,13 @@ if __name__ == '__main__':
 
     # get_learning_rate_graphs((num_atrs, (num_atrs + outputs_num)//2, outputs_num), train_df, test_df)
     # get_training_data_length_graphs((num_atrs, (num_atrs + outputs_num)//2, outputs_num), train_df.copy(), test_df)
-    # get_number_neurons_length_graphs((num_atrs, (num_atrs + outputs_num)//2, outputs_num), train_df, test_df)
-    # get_number_neurons_length_graphs((num_atrs, (num_atrs + outputs_num) // 2, outputs_num), train_df, test_df)
-    get_iteration_number_graphs((num_atrs, (num_atrs + outputs_num) // 2, outputs_num), train_df, test_df)
+    get_number_neurons_length_graphs((num_atrs, (num_atrs + outputs_num)//2, outputs_num), train_df, test_df)
 
     # net = Elman(num_atrs, (num_atrs + outputs_num)//2, outputs_num)
+
+    learning_rate = 0.1
+    momentum = 0.1
+    all_losses = []
 
 
 
