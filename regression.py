@@ -1,27 +1,31 @@
-import pandas as pd
-from sklearn import datasets
-from sklearn.preprocessing import LabelBinarizer
-from sklearn.model_selection import train_test_split
-import yaml
-import os
+import os.path
+
 import numpy as np
+import pandas as pd
+import yaml
 from sklearn.metrics import log_loss
+from sklearn.metrics import mean_absolute_percentage_error, mean_absolute_error
 
-from nets import Elman
+from nets import ElmanClassification, ElmanRegression
+from sklearn.neural_network import MLPRegressor
 
 
-def load_dataset(file_name):
-    if not os.path.exists(file_name):
-        iris = datasets.load_iris(as_frame=True)
-
-        data = iris.data
-        data['target'] = iris.target
-
-        data.to_excel(file_name, index=False)
+def load_dataset():
+    if os.path.exists(f'{regression_folder}/processed_data.csv'):
+        res_df = pd.read_csv(f'{regression_folder}/processed_data.csv', index_col='time')
     else:
-        data = pd.read_excel(file_name)
+        df = pd.read_csv(f'{regression_folder}/data.csv')
 
-    return data
+        df = df.iloc[11:, :2]
+        df.columns = ['time', 'tempr']
+        df['time'] = pd.to_datetime(df['time']).dt.date
+        df['tempr'] = df['tempr'].astype(float)
+        res_df = df.groupby('time')['tempr'].mean()
+        res_df.to_csv(f'{regression_folder}/processed_data.csv')
+
+    res_df.sort_values(by='time', inplace=True)
+
+    return res_df
 
 
 def get_learning_rate_graphs(net_params, train_df, test_df):
@@ -35,7 +39,7 @@ def get_learning_rate_graphs(net_params, train_df, test_df):
         all_losses = []
 
         for lr in learning_rates:
-            net = Elman(*net_params)
+            net = ElmanClassification(*net_params)
 
             print('learning_rate: ', lr)
             for i in range(90):
@@ -70,7 +74,7 @@ def get_training_data_length_graphs(net_params, train_df, test_df):
     folder_to_save_data = 'classification_data/results'
 
     for length in train_data_lengths:
-        net = Elman(*net_params)
+        net = ElmanClassification(*net_params)
 
         train_df = train_df.sample(frac=1, random_state=2).reset_index(drop=True)
 
@@ -105,11 +109,10 @@ def get_number_neurons_length_graphs(net_params, train_df, test_df):
 
     folder_to_save_data = 'classification_data/results'
 
-    hidden_layer_length_list= [2, 3, 5, 7, 10]
-
+    hidden_layer_length_list = [2, 3, 5, 7, 10]
 
     for hidden_layer_length in hidden_layer_length_list:
-        net = Elman(num_atrs, hidden_layer_length, outputs_num)
+        net = ElmanClassification(num_atrs, hidden_layer_length, outputs_num)
 
         print(hidden_layer_length)
 
@@ -137,36 +140,80 @@ if __name__ == '__main__':
 
     # установка сида для того, чтобы результаты получались теми же самыми при повторном запуске
     random_state = params['random_state']
+
     np.random.seed(1)
 
-    classification_folder = 'classification_data'
+    regression_folder = 'regression_data'
 
-    df = load_dataset(f'{classification_folder}/iris_dataset.xlsx')
+    df = load_dataset()
+    print(df.shape)
 
-    # Кодировка таргета one_hot: 0 - [1, 0, 0], 1 - [0, 1, 0], 2 - [0, 0, 1]
-    label_encoder = LabelBinarizer()
-    one_hot_target = label_encoder.fit_transform(df['target'])
+    window_size = 6
 
-    df.loc[:, 'target_one_hot'] = pd.Series(list(one_hot_target))
-    train_df, test_df = train_test_split(df, test_size=0.2, random_state=random_state)
-    print(train_df.shape, test_df.shape)
+    # генерим индексы, которые получаются при скользящем окне
+    start_ind = np.arange(0, window_size, 1)
 
-    atrs = [col for col in df.columns if col not in ['target', 'target_one_hot']]
+    train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(300)]
+    test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(300, 363)]
 
-    num_atrs = len(atrs)
-    outputs_num = train_df.target.unique().shape[0]
 
-    # get_learning_rate_graphs((num_atrs, (num_atrs + outputs_num)//2, outputs_num), train_df, test_df)
-    # get_training_data_length_graphs((num_atrs, (num_atrs + outputs_num)//2, outputs_num), train_df.copy(), test_df)
-    get_number_neurons_length_graphs((num_atrs, (num_atrs + outputs_num)//2, outputs_num), train_df, test_df)
+    # print(indx + 1)
+    # print(df.iloc[indx])
+    # print(df.iloc[indx + 1])
 
-    # net = Elman(num_atrs, (num_atrs + outputs_num)//2, outputs_num)
+    # df['tempr'].iloc[]
+
+    test_targets = []
+
+    net = MLPRegressor(hidden_layer_sizes=2)
+
+    X, y = [], []
+    for i, train_row in enumerate(train_ind_data):
+        train_ind_row, target_ind = train_row[0], train_row[1]
+        X.append(df.iloc[train_ind_row, 0])
+        y.append( df.iloc[target_ind, 0])
+
+    net.fit(X, y)
+    print(mean_absolute_error(y, net.predict(X)))
+    print(mean_absolute_percentage_error(y, net.predict(X)))
+
+    net = ElmanRegression(window_size, 10, 1)
+    test_predictions = []
+
+    for test_row in train_ind_data:
+        test_ind_row, target_ind = test_row[0], test_row[1]
+        a = net.forward(df.iloc[test_ind_row, 0])
+        # print(df.iloc[test_ind_row, 0].values, a, df.iloc[target_ind, 0])
+        test_predictions.append(a[0])
+        test_targets.append(df.iloc[target_ind].iloc[0])
+
+    print('Стартовые значения mape:',  mean_absolute_percentage_error(test_targets, test_predictions))
+    print('Стартовые значения mae:', mean_absolute_error(test_targets, test_predictions))
+
+    for j in range(900):
+        for i, train_row in enumerate(train_ind_data):
+            train_ind_row, target_ind = train_row[0], train_row[1]
+            a = net.forward(df.iloc[train_ind_row, 0])
+            # print(df.iloc[train_ind_row, 0].values, a, df.iloc[target_ind, 0])
+            # print('до:', a, df.iloc[target_ind, 0])
+            net.backward(df.iloc[target_ind, 0])
+            # print('после:', net.forward(df.iloc[train_ind_row, 0]), df.iloc[target_ind, 0])
+    #
+        # break
+        test_predictions = []
+        for test_row in train_ind_data:
+            test_ind_row, target_ind = test_row[0], test_row[1]
+            a = net.forward(df.iloc[test_ind_row, 0])
+            # print(df.iloc[test_ind_row, 0].values, a, df.iloc[target_ind, 0])
+            test_predictions.append(a[0])
+
+
+
+        print(mean_absolute_percentage_error(test_targets, test_predictions))
+        print(mean_absolute_error(test_targets, test_predictions))
+                # print(test_targets)
+                # print(test_predictions)
 
     learning_rate = 0.1
     momentum = 0.1
     all_losses = []
-
-
-
-
-

@@ -7,7 +7,7 @@ import os
 import numpy as np
 from sklearn.metrics import log_loss
 
-from nets import Elman
+from nets import ElmanClassification
 
 
 def load_dataset(file_name):
@@ -35,7 +35,7 @@ def get_learning_rate_graphs(net_params, train_df, test_df):
         all_losses = []
 
         for lr in learning_rates:
-            net = Elman(*net_params)
+            net = ElmanClassification(*net_params)
 
             print('learning_rate: ', lr)
             for i in range(90):
@@ -70,7 +70,7 @@ def get_training_data_length_graphs(net_params, train_df, test_df):
     folder_to_save_data = 'classification_data/results'
 
     for length in train_data_lengths:
-        net = Elman(*net_params)
+        net = ElmanClassification(*net_params)
 
         train_df = train_df.sample(frac=1, random_state=2).reset_index(drop=True)
 
@@ -108,7 +108,7 @@ def get_number_neurons_length_graphs(net_params, train_df, test_df):
     hidden_layer_length_list = [2, 3, 4, 5, 6, 7, 10, 12, 15, 16, 17, 19, 20]
 
     for hidden_layer_length in hidden_layer_length_list:
-        net = Elman(num_atrs, hidden_layer_length, outputs_num)
+        net = ElmanClassification(num_atrs, hidden_layer_length, outputs_num)
 
         print(hidden_layer_length)
 
@@ -143,7 +143,7 @@ def get_number_neurons_length_graphs(net_params, train_df, test_df):
     hidden_layer_length_list = [2, 3, 4, 5, 6, 7, 10, 12, 15, 16, 17, 19, 20]
 
     for hidden_layer_length in hidden_layer_length_list:
-        net = Elman(num_atrs, hidden_layer_length, outputs_num)
+        net = ElmanClassification(num_atrs, hidden_layer_length, outputs_num)
 
         print(hidden_layer_length)
 
@@ -176,7 +176,7 @@ def get_iteration_number_graphs(net_params, train_df, test_df):
     epochs_number = [2, 4, 6, 7, 8, 9, 10, 11, 12] + np.arange(20, 150, 10).tolist()
 
     for epoch_number in epochs_number:
-        net = Elman(*net_params)
+        net = ElmanClassification(*net_params)
 
         print(epoch_number)
 
