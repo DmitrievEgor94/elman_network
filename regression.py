@@ -146,74 +146,51 @@ if __name__ == '__main__':
     regression_folder = 'regression_data'
 
     df = load_dataset()
-    print(df.shape)
 
-    window_size = 6
+    max_value = df.tempr.max()
+    df['tempr'] /= max_value
+
+    window_size = 7
 
     # генерим индексы, которые получаются при скользящем окне
     start_ind = np.arange(0, window_size, 1)
 
     train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(300)]
-    test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(300, 363)]
+    test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(300, df.shape[0] - window_size)]
 
-
-    # print(indx + 1)
-    # print(df.iloc[indx])
-    # print(df.iloc[indx + 1])
-
-    # df['tempr'].iloc[]
+    print(len(test_ind_data))
+    print(test_ind_data[-1])
 
     test_targets = []
 
-    net = MLPRegressor(hidden_layer_sizes=2)
-
-    X, y = [], []
-    for i, train_row in enumerate(train_ind_data):
-        train_ind_row, target_ind = train_row[0], train_row[1]
-        X.append(df.iloc[train_ind_row, 0])
-        y.append( df.iloc[target_ind, 0])
-
-    net.fit(X, y)
-    print(mean_absolute_error(y, net.predict(X)))
-    print(mean_absolute_percentage_error(y, net.predict(X)))
-
-    net = ElmanRegression(window_size, 10, 1)
+    net = ElmanRegression(window_size, (window_size + 1)//2, 1)
     test_predictions = []
 
-    for test_row in train_ind_data:
+    for test_row in test_ind_data:
         test_ind_row, target_ind = test_row[0], test_row[1]
         a = net.forward(df.iloc[test_ind_row, 0])
-        # print(df.iloc[test_ind_row, 0].values, a, df.iloc[target_ind, 0])
+
         test_predictions.append(a[0])
         test_targets.append(df.iloc[target_ind].iloc[0])
 
     print('Стартовые значения mape:',  mean_absolute_percentage_error(test_targets, test_predictions))
     print('Стартовые значения mae:', mean_absolute_error(test_targets, test_predictions))
 
-    for j in range(900):
+    for j in range(1000):
         for i, train_row in enumerate(train_ind_data):
             train_ind_row, target_ind = train_row[0], train_row[1]
             a = net.forward(df.iloc[train_ind_row, 0])
-            # print(df.iloc[train_ind_row, 0].values, a, df.iloc[target_ind, 0])
-            # print('до:', a, df.iloc[target_ind, 0])
-            net.backward(df.iloc[target_ind, 0])
-            # print('после:', net.forward(df.iloc[train_ind_row, 0]), df.iloc[target_ind, 0])
-    #
-        # break
+            net.backward(df.iloc[target_ind, 0], lrate=0.08)
+
         test_predictions = []
-        for test_row in train_ind_data:
-            test_ind_row, target_ind = test_row[0], test_row[1]
-            a = net.forward(df.iloc[test_ind_row, 0])
-            # print(df.iloc[test_ind_row, 0].values, a, df.iloc[target_ind, 0])
-            test_predictions.append(a[0])
 
+    for test_row in test_ind_data:
+        test_ind_row, target_ind = test_row[0], test_row[1]
+        a = net.forward(df.iloc[test_ind_row, 0])
+        test_predictions.append(a[0])
 
+    print('mape: ', mean_absolute_percentage_error(np.array(test_targets) * max_value,
+                                         np.array(test_predictions) * max_value))
 
-        print(mean_absolute_percentage_error(test_targets, test_predictions))
-        print(mean_absolute_error(test_targets, test_predictions))
-                # print(test_targets)
-                # print(test_predictions)
-
-    learning_rate = 0.1
-    momentum = 0.1
-    all_losses = []
+    print('mae: ', mean_absolute_error(np.array(test_targets) * max_value,
+                                         np.array(test_predictions) * max_value))
