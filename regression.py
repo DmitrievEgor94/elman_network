@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from sklearn.metrics import log_loss
-from sklearn.metrics import mean_absolute_percentage_error, mean_absolute_error
+from sklearn.metrics import mean_absolute_percentage_error, mean_absolute_error, mean_squared_error
 
 from nets import ElmanClassification, ElmanRegression
 
@@ -181,7 +181,16 @@ if __name__ == '__main__':
             a = net.forward(df.iloc[train_ind_row, 0])
             net.backward(df.iloc[target_ind, 0], lrate=0.08)
 
-        test_predictions = []
+    test_predictions = []
+
+    train_predictions = []
+    train_targets = []
+    for i, train_row in enumerate(train_ind_data):
+        train_ind_row, target_ind = train_row[0], train_row[1]
+        a = net.forward(df.iloc[train_ind_row, 0])
+        train_predictions.append(a[0] * max_value)
+        train_targets.append(df.iloc[target_ind, 0] * max_value)
+        net.backward(df.iloc[target_ind, 0], lrate=0.08)
 
     print('Предсказания и факты на тестовой выборке:')
     for test_row in test_ind_data:
@@ -190,8 +199,14 @@ if __name__ == '__main__':
         print(a[0] * max_value, df.iloc[target_ind, 0] * max_value)
         test_predictions.append(a[0])
 
-    print('mape: ', mean_absolute_percentage_error(np.array(test_targets) * max_value,
+    print('mse_train: ', mean_squared_error(np.array(train_targets) * max_value,
+                                           np.array(train_predictions) * max_value))
+
+    print('mape_test: ', mean_absolute_percentage_error(np.array(test_targets) * max_value,
                                                    np.array(test_predictions) * max_value))
 
-    print('mae: ', mean_absolute_error(np.array(test_targets) * max_value,
+    print('mae_tеst: ', mean_absolute_error(np.array(test_targets) * max_value,
+                                       np.array(test_predictions) * max_value))
+
+    print('mse_test: ', mean_squared_error(np.array(test_targets) * max_value,
                                        np.array(test_predictions) * max_value))
