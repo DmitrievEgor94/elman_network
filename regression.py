@@ -154,9 +154,10 @@ if __name__ == '__main__':
     # генерим индексы, которые получаются при скользящем окне
     start_ind = np.arange(0, window_size, 1)
 
-    train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(300)]
-    test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(300, df.shape[0] - window_size)]
+    train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(349)]
+    test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(349, df.shape[0] - window_size)]
 
+    print(len(train_ind_data))
     print(len(test_ind_data))
     print(test_ind_data[-1])
 
@@ -181,7 +182,6 @@ if __name__ == '__main__':
             a = net.forward(df.iloc[train_ind_row, 0])
             net.backward(df.iloc[target_ind, 0], lrate=0.08)
 
-    test_predictions = []
 
     train_predictions = []
     train_targets = []
@@ -192,21 +192,25 @@ if __name__ == '__main__':
         train_predictions.append(a[0])
         train_targets.append(df.iloc[target_ind, 0])
 
+    test_predictions = []
+    test_targets = []
+
     print('Предсказания и факты на тестовой выборке:')
-    for test_row in test_ind_data:
+    for i, test_row in enumerate(test_ind_data):
         test_ind_row, target_ind = test_row[0], test_row[1]
         a = net.forward(df.iloc[test_ind_row, 0])
-        print(a[0] * max_value, df.iloc[target_ind, 0] * max_value)
+        print(a[0], df.iloc[target_ind, 0])
+        test_targets.append(df.iloc[target_ind, 0])
         test_predictions.append(a[0])
 
-    print('mse_train: ', mean_squared_error(np.array(train_targets) * max_value,
-                                           np.array(train_predictions) * max_value))
+    print('mse_train: ', mean_squared_error(np.array(train_targets) ,
+                                           np.array(train_predictions) ))
 
-    print('mape_test: ', mean_absolute_percentage_error(np.array(test_targets) * max_value,
-                                                   np.array(test_predictions) * max_value))
+    print('mape_test: ', mean_absolute_percentage_error(np.array(test_targets) ,
+                                                   np.array(test_predictions) ))
 
-    print('mae_tеst: ', mean_absolute_error(np.array(test_targets) * max_value,
-                                       np.array(test_predictions) * max_value))
+    print('mae_tеst: ', mean_absolute_error(np.array(test_targets),
+                                       np.array(test_predictions) ))
 
-    print('mse_test: ', mean_squared_error(np.array(test_targets) * max_value,
-                                       np.array(test_predictions) * max_value))
+    print('mse_test: ', mean_squared_error(np.array(test_targets),
+                                       np.array(test_predictions)))
