@@ -185,12 +185,12 @@ if __name__ == '__main__':
 
     train_predictions = []
     train_targets = []
+
     for i, train_row in enumerate(train_ind_data):
         train_ind_row, target_ind = train_row[0], train_row[1]
         a = net.forward(df.iloc[train_ind_row, 0])
-        train_predictions.append(a[0] * max_value)
-        train_targets.append(df.iloc[target_ind, 0] * max_value)
-        net.backward(df.iloc[target_ind, 0], lrate=0.08)
+        train_predictions.append(a[0])
+        train_targets.append(df.iloc[target_ind, 0])
 
     print('Предсказания и факты на тестовой выборке:')
     for test_row in test_ind_data:
