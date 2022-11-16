@@ -7,7 +7,6 @@ from sklearn.metrics import log_loss
 from sklearn.metrics import mean_absolute_percentage_error, mean_absolute_error
 
 from nets import ElmanClassification, ElmanRegression
-from sklearn.neural_network import MLPRegressor
 
 
 def load_dataset():
@@ -163,7 +162,7 @@ if __name__ == '__main__':
 
     test_targets = []
 
-    net = ElmanRegression(window_size, (window_size + 1)//2, 1)
+    net = ElmanRegression(window_size, (window_size + 1) // 2, 1)
     test_predictions = []
 
     for test_row in test_ind_data:
@@ -173,7 +172,7 @@ if __name__ == '__main__':
         test_predictions.append(a[0])
         test_targets.append(df.iloc[target_ind].iloc[0])
 
-    print('Стартовые значения mape:',  mean_absolute_percentage_error(test_targets, test_predictions))
+    print('Стартовые значения mape:', mean_absolute_percentage_error(test_targets, test_predictions))
     print('Стартовые значения mae:', mean_absolute_error(test_targets, test_predictions))
 
     for j in range(1000):
@@ -184,13 +183,15 @@ if __name__ == '__main__':
 
         test_predictions = []
 
+    print('Предсказания и факты на тестовой выборке:')
     for test_row in test_ind_data:
         test_ind_row, target_ind = test_row[0], test_row[1]
         a = net.forward(df.iloc[test_ind_row, 0])
+        print(a[0] * max_value, df.iloc[target_ind, 0] * max_value)
         test_predictions.append(a[0])
 
     print('mape: ', mean_absolute_percentage_error(np.array(test_targets) * max_value,
-                                         np.array(test_predictions) * max_value))
+                                                   np.array(test_predictions) * max_value))
 
     print('mae: ', mean_absolute_error(np.array(test_targets) * max_value,
-                                         np.array(test_predictions) * max_value))
+                                       np.array(test_predictions) * max_value))
