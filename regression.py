@@ -2,14 +2,16 @@ import os.path
 
 import numpy as np
 import pandas as pd
-import yaml
+from matplotlib import pyplot as plt
 from sklearn.metrics import log_loss
 from sklearn.metrics import mean_absolute_percentage_error, mean_absolute_error, mean_squared_error
 
 from nets import ElmanClassification, ElmanRegression
 
+import yaml
 
-def load_dataset():
+
+def load_dataset(regression_folder):
     if os.path.exists(f'{regression_folder}/processed_data.csv'):
         res_df = pd.read_csv(f'{regression_folder}/processed_data.csv', index_col='time')
     else:
@@ -134,54 +136,65 @@ def get_number_neurons_length_graphs(net_params, train_df, test_df):
     df_lr_losses.to_excel(f'{folder_to_save_data}/hidden_layer_length_loss.xlsx', index=False)
 
 
-if __name__ == '__main__':
-    params = yaml.load(open('params.yaml'), yaml.FullLoader)
+def print_metrics(true_ar, predict_ar, dataset_type):
+    print(f'mse_{dataset_type}: ', mean_squared_error(true_ar, predict_ar))
 
-    # установка сида для того, чтобы результаты получались теми же самыми при повторном запуске
-    random_state = params['random_state']
+    print(f'mape_{dataset_type}: ', mean_absolute_percentage_error(true_ar, predict_ar))
 
-    np.random.seed(1)
+    print(f'mae_{dataset_type}: ', mean_absolute_error(true_ar, predict_ar))
 
+
+def train_with_real_data():
     regression_folder = 'regression_data'
 
-    df = load_dataset()
+    df = load_dataset(regression_folder)
 
     max_value = df.tempr.max()
     df['tempr'] /= max_value
 
-    window_size = 7
 
+def train_net_print_metrics(df, last_index_train, epochs_number,
+                            window_size, print_values=False, make_normalization=False):
     # генерим индексы, которые получаются при скользящем окне
     start_ind = np.arange(0, window_size, 1)
 
-    train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(349)]
-    test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(349, df.shape[0] - window_size)]
+    if make_normalization:
+        norm_value = df.iloc[:, 0].max()
+        df.iloc[:, 0] /= norm_value
 
-    print(len(train_ind_data))
-    print(len(test_ind_data))
-    print(test_ind_data[-1])
-
-    test_targets = []
+    train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(last_index_train)]
+    test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(last_index_train, df.shape[0] - window_size)]
 
     net = ElmanRegression(window_size, (window_size + 1) // 2, 1)
-    test_predictions = []
 
-    for test_row in test_ind_data:
+    train_predictions = []
+    train_targets = []
+
+    print('train/test split:', len(train_ind_data), '/', len(test_ind_data))
+
+    for test_row in train_ind_data:
         test_ind_row, target_ind = test_row[0], test_row[1]
         a = net.forward(df.iloc[test_ind_row, 0])
 
-        test_predictions.append(a[0])
-        test_targets.append(df.iloc[target_ind].iloc[0])
+        train_predictions.append(a[0])
+        train_targets.append(df.iloc[target_ind].iloc[0])
 
-    print('Стартовые значения mape:', mean_absolute_percentage_error(test_targets, test_predictions))
-    print('Стартовые значения mae:', mean_absolute_error(test_targets, test_predictions))
+    print('Стартовые значения метрик:')
 
-    for j in range(1000):
+    if make_normalization:
+        train_targets = np.array(train_targets)
+        train_predictions = np.array(train_predictions)
+
+        train_targets *= norm_value
+        train_predictions *= norm_value
+
+    print_metrics(train_targets, train_predictions, dataset_type='train')
+
+    for j in range(epochs_number):
         for i, train_row in enumerate(train_ind_data):
             train_ind_row, target_ind = train_row[0], train_row[1]
-            a = net.forward(df.iloc[train_ind_row, 0])
+            net.forward(df.iloc[train_ind_row, 0])
             net.backward(df.iloc[target_ind, 0], lrate=0.08)
-
 
     train_predictions = []
     train_targets = []
@@ -195,22 +208,90 @@ if __name__ == '__main__':
     test_predictions = []
     test_targets = []
 
-    print('Предсказания и факты на тестовой выборке:')
+    if print_values:
+        print('\nПредсказания и факты на тестовой выборке:')
+
     for i, test_row in enumerate(test_ind_data):
         test_ind_row, target_ind = test_row[0], test_row[1]
         a = net.forward(df.iloc[test_ind_row, 0])
-        print(a[0], df.iloc[target_ind, 0])
+
+        if print_values:
+            if make_normalization:
+                print(a[0]*norm_value, df.iloc[target_ind, 0]*norm_value)
+            else:
+                print(a[0]*norm_value, df.iloc[target_ind, 0]*norm_value)
+
         test_targets.append(df.iloc[target_ind, 0])
         test_predictions.append(a[0])
 
-    print('mse_train: ', mean_squared_error(np.array(train_targets) ,
-                                           np.array(train_predictions) ))
+    if make_normalization:
+        train_targets = np.array(train_targets)
+        train_predictions = np.array(train_predictions)
 
-    print('mape_test: ', mean_absolute_percentage_error(np.array(test_targets) ,
-                                                   np.array(test_predictions) ))
+        test_targets = np.array(test_targets)
+        test_predictions = np.array(test_predictions)
 
-    print('mae_tеst: ', mean_absolute_error(np.array(test_targets),
-                                       np.array(test_predictions) ))
+        train_targets *= norm_value
+        train_predictions *= norm_value
 
-    print('mse_test: ', mean_squared_error(np.array(test_targets),
-                                       np.array(test_predictions)))
+        test_targets *= norm_value
+        test_predictions *= norm_value
+
+    print('\nМетрики на трейне:')
+    print_metrics(train_targets, train_predictions, dataset_type='train')
+
+    print('\nМетрики на тесте:')
+    print_metrics(test_targets, test_predictions, dataset_type='test')
+
+
+def gen_garmonic_dataframe(type='sin', show_graph=False):
+    if type == 'sin':
+        func = np.sin
+    elif type == 'cos':
+        func = np.cos
+    else:
+        raise Exception('Напиши гармонику!')
+
+    X_train = np.arange(0, 270, 1)
+    y_train = func(X_train)
+
+    X_test = np.arange(270, 307, 1)
+    y_test = func(X_test)
+
+    if show_graph == True:
+        fig, ax = plt.subplots(1, 1, figsize=(15, 4))
+        ax.plot(X_train, y_train, lw=3, label='train data')
+        ax.plot(X_test, y_test, lw=3, label='test data')
+        ax.legend(loc="lower left")
+        plt.show()
+
+    df = pd.DataFrame(np.concatenate([y_train, y_test]), columns=['values'])
+
+    return df
+
+
+if __name__ == '__main__':
+    params = yaml.load(open('params.yaml'), yaml.FullLoader)
+
+    # установка сида для того, чтобы результаты получались теми же самыми при повторном запуске
+    random_state = params['random_state']
+    np.random.seed(1)
+    #
+    print('-'*20, 'Результаты для синуса:','-'*20)
+    sin_df = gen_garmonic_dataframe(type='sin', show_graph=False)
+
+    train_net_print_metrics(sin_df, last_index_train=270, epochs_number=80, window_size=7)
+
+    print('-' * 20, 'Результаты для косинуса:', '-'*20)
+    cos_df = gen_garmonic_dataframe(type='cos')
+
+    train_net_print_metrics(cos_df, last_index_train=270, epochs_number=60, window_size=7)
+
+    print('-' * 20, 'Результаты для реального датасета:', '-' * 20)
+
+    df = load_dataset(regression_folder='regression_data')
+
+    train_net_print_metrics(df, last_index_train=340, epochs_number=1200, window_size=7,
+                            print_values=True, make_normalization=True)
+
+

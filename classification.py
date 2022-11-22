@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 import yaml
 import os
 import numpy as np
-from sklearn.metrics import log_loss
+from sklearn.metrics import
 
 from nets import ElmanClassification
 
