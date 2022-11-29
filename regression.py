@@ -258,7 +258,7 @@ def gen_garmonic_dataframe(type='sin', show_graph=False):
     X_test = np.arange(270, 307, 1)
     y_test = func(X_test)
 
-    if show_graph == True:
+    if show_graph:
         fig, ax = plt.subplots(1, 1, figsize=(15, 4))
         ax.plot(X_train, y_train, lw=3, label='train data')
         ax.plot(X_test, y_test, lw=3, label='test data')
