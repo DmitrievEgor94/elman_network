@@ -29,111 +29,159 @@ def load_dataset(regression_folder):
     return res_df
 
 
-def get_learning_rate_graphs(net_params, train_df, test_df):
+def get_learning_rate_graphs(net_params, df, train_inds, test_inds, norm_value):
     learning_rates = np.arange(0.001, 0.3, 0.01).tolist()
     learning_rates += [0.5, 1, 1.5, 2, 10]
-    moments = [0, 0.1]
 
-    folder_to_save_data = 'classification_data/results'
-
-    for moment in moments:
-        all_losses = []
-
-        for lr in learning_rates:
-            net = ElmanClassification(*net_params)
-
-            print('learning_rate: ', lr)
-            for i in range(90):
-                for j in range(train_df.shape[0]):
-                    a, b = net.forward(train_df[atrs].iloc[j])
-                    net.backward(train_df['target_one_hot'].iloc[j], lrate=lr, momentum=moment)
-
-            predicts = []
-            losses = []
-
-            for j in range(test_df.shape[0]):
-                a, b = net.forward(test_df[atrs].iloc[j])
-                losses.append(log_loss(y_true=test_df['target_one_hot'].iloc[j], y_pred=b))
-                predicts.append(np.argmax(a))
-
-            all_losses.append(np.mean(losses))
-            print('loss:', np.mean(losses))
-            # print('accuracy:', np.mean(np.array(predicts == test_df['target'])))
-
-        df_lr_losses = pd.DataFrame(zip(learning_rates, all_losses), columns=['learning rate', 'losses'])
-        df_lr_losses.to_excel(f'{folder_to_save_data}/learning_rate_loss_moment_{round(moment, 2)}.xlsx', index=False)
-
-
-def get_training_data_length_graphs(net_params, train_df, test_df):
-    train_data_lengths = [30, 60, 90, 120]
-
-    learning_rate = 0.1
-    momentum = 0.1
+    folder_to_save_data = 'regression_data/results'
 
     all_losses = []
 
-    folder_to_save_data = 'classification_data/results'
+    for lr in learning_rates:
+        np.random.seed(1)
+        net = ElmanRegression(*net_params)
+
+        print('learning_rate: ', lr)
+        for i in range(500):
+            for train_row in train_inds:
+                train_ind_row, target_ind = train_row
+                net.forward(df.iloc[train_ind_row, 0])
+                net.backward(df.iloc[target_ind, 0], lrate=lr)
+
+        predicts = []
+        targets = []
+
+        for test_row in test_inds:
+            test_ind_row, target_ind = test_row
+            a = net.forward(df.iloc[test_ind_row, 0])
+            predicts.append(a[0] * norm_value)
+            targets.append(df.iloc[target_ind, 0] * norm_value)
+
+        # print(predicts, targets)
+        all_losses.append(mean_squared_error(y_true=targets, y_pred=predicts)**(1/2))
+        print('loss:', all_losses[-1])
+
+    df_lr_losses = pd.DataFrame(zip(learning_rates, all_losses), columns=['learning rate', 'средняя квадратичная ошибка'])
+    df_lr_losses.to_excel(f'{folder_to_save_data}/learning_rate_loss.xlsx', index=False)
+
+
+def get_training_data_length_graphs(net_params, df, norm_value):
+    train_data_lengths = [150, 200, 250, 300, 330]
+
+    all_losses = []
+
+    folder_to_save_data = 'regression_data/results'
 
     for length in train_data_lengths:
-        net = ElmanClassification(*net_params)
+        print("length:", length)
+        np.random.seed(1)
+        net = ElmanRegression(*net_params)
 
-        train_df = train_df.sample(frac=1, random_state=2).reset_index(drop=True)
+        train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(length)]
+        test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in
+                         range(length, df.shape[0] - window_size)]
 
-        print(length)
+        for i in range(500):
+            for train_row in train_ind_data:
+                train_ind_row, target_ind = train_row
+                net.forward(df.iloc[train_ind_row, 0])
+                net.backward(df.iloc[target_ind, 0])
 
-        for _ in range(35):
-            for j in range(length):
-                a, b = net.forward(train_df[atrs].iloc[j])
-                net.backward(train_df['target_one_hot'].iloc[j], lrate=learning_rate, momentum=momentum)
+        predicts = []
+        targets = []
 
-        losses = []
+        for test_row in test_ind_data:
+            test_ind_row, target_ind = test_row
+            a = net.forward(df.iloc[test_ind_row, 0])
+            predicts.append(a[0] * norm_value)
+            targets.append(df.iloc[target_ind, 0] * norm_value)
 
-        for j in range(test_df.shape[0]):
-            a, b = net.forward(test_df[atrs].iloc[j])
-            losses.append(log_loss(y_true=test_df['target_one_hot'].iloc[j], y_pred=b))
+        all_losses.append(mean_squared_error(y_true=targets, y_pred=predicts)**(1/2))
 
-        all_losses.append(np.mean(losses))
-
-        print('loss:', np.mean(losses))
+        print('loss:', all_losses[-1])
 
     df_lr_losses = pd.DataFrame(zip(train_data_lengths, all_losses), columns=['traing data length', 'losses'])
     df_lr_losses.to_excel(f'{folder_to_save_data}/training_data_length_loss.xlsx', index=False)
 
 
-def get_number_neurons_length_graphs(net_params, train_df, test_df):
+def get_number_neurons_length_graphs(net_params, df, train_ind_data, test_ind_data, norm_value):
     num_atrs, _, outputs_num = net_params
-
-    learning_rate = 0.1
-    momentum = 0.1
 
     all_losses = []
 
-    folder_to_save_data = 'classification_data/results'
+    folder_to_save_data = 'regression_data/results'
 
     hidden_layer_length_list = [2, 3, 5, 7, 10]
 
     for hidden_layer_length in hidden_layer_length_list:
-        net = ElmanClassification(num_atrs, hidden_layer_length, outputs_num)
+        np.random.seed(1)
+        net = ElmanRegression(num_atrs, hidden_layer_length, outputs_num)
 
         print(hidden_layer_length)
 
-        for _ in range(90):
-            for j in range(train_df.shape[0]):
-                a, b = net.forward(train_df[atrs].iloc[j])
-                net.backward(train_df['target_one_hot'].iloc[j], lrate=learning_rate, momentum=momentum)
+        for i in range(500):
+            for train_row in train_ind_data:
+                train_ind_row, target_ind = train_row
+                net.forward(df.iloc[train_ind_row, 0])
+                net.backward(df.iloc[target_ind, 0])
 
-        losses = []
+        predicts = []
+        targets = []
 
-        for j in range(test_df.shape[0]):
-            a, b = net.forward(test_df[atrs].iloc[j])
-            losses.append(log_loss(y_true=test_df['target_one_hot'].iloc[j], y_pred=b))
+        for test_row in test_ind_data:
+            test_ind_row, target_ind = test_row
+            a = net.forward(df.iloc[test_ind_row, 0])
+            predicts.append(a[0] * norm_value)
+            targets.append(df.iloc[target_ind, 0] * norm_value)
 
-        all_losses.append(np.mean(losses))
-
-        print('loss:', np.mean(losses))
+        all_losses.append(mean_squared_error(y_true=targets, y_pred=predicts)**(1/2))
+        print('loss:', all_losses[-1])
 
     df_lr_losses = pd.DataFrame(zip(hidden_layer_length_list, all_losses), columns=['hidden layer length', 'losses'])
     df_lr_losses.to_excel(f'{folder_to_save_data}/hidden_layer_length_loss.xlsx', index=False)
+
+
+def get_window_size_graph(net_params, df, norm_value):
+    sizes = [3, 5, 7, 10, 15, 30]
+
+    all_losses = []
+
+    folder_to_save_data = 'regression_data/results'
+
+    for window_size in sizes:
+        print("widnow_size:", window_size)
+        np.random.seed(1)
+        _, hidden, outputs = net_params
+
+        net = ElmanRegression(window_size, hidden, outputs)
+
+        start_ind = np.arange(0, window_size, 1)
+
+        train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(300)]
+        test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in
+                         range(300, df.shape[0] - window_size)]
+
+        for i in range(500):
+            for train_row in train_ind_data:
+                train_ind_row, target_ind = train_row
+                net.forward(df.iloc[train_ind_row, 0])
+                net.backward(df.iloc[target_ind, 0])
+
+        predicts = []
+        targets = []
+
+        for test_row in test_ind_data:
+            test_ind_row, target_ind = test_row
+            a = net.forward(df.iloc[test_ind_row, 0])
+            predicts.append(a[0] * norm_value)
+            targets.append(df.iloc[target_ind, 0] * norm_value)
+
+        all_losses.append(mean_squared_error(y_true=targets, y_pred=predicts) ** (1 / 2))
+
+        print('loss:', all_losses[-1])
+
+    df_lr_losses = pd.DataFrame(zip(sizes, all_losses), columns=['window size', 'средняя квадратичная ошибка'])
+    df_lr_losses.to_excel(f'{folder_to_save_data}/window_size_loss.xlsx', index=False)
 
 
 def print_metrics(true_ar, predict_ar, dataset_type):
@@ -142,15 +190,6 @@ def print_metrics(true_ar, predict_ar, dataset_type):
     print(f'mape_{dataset_type}: ', mean_absolute_percentage_error(true_ar, predict_ar))
 
     print(f'mae_{dataset_type}: ', mean_absolute_error(true_ar, predict_ar))
-
-
-def train_with_real_data():
-    regression_folder = 'regression_data'
-
-    df = load_dataset(regression_folder)
-
-    max_value = df.tempr.max()
-    df['tempr'] /= max_value
 
 
 def train_net_print_metrics(df, last_index_train, epochs_number,
@@ -270,19 +309,19 @@ def gen_garmonic_dataframe(type='sin', show_graph=False):
     return df
 
 
-if __name__ == '__main__':
+def first_part_of_lab():
     params = yaml.load(open('params.yaml'), yaml.FullLoader)
 
     # установка сида для того, чтобы результаты получались теми же самыми при повторном запуске
     random_state = params['random_state']
     np.random.seed(1)
     #
-    print('-'*20, 'Результаты для синуса:','-'*20)
+    print('-' * 20, 'Результаты для синуса:', '-' * 20)
     sin_df = gen_garmonic_dataframe(type='sin', show_graph=False)
 
     train_net_print_metrics(sin_df, last_index_train=270, epochs_number=80, window_size=7)
 
-    print('-' * 20, 'Результаты для косинуса:', '-'*20)
+    print('-' * 20, 'Результаты для косинуса:', '-' * 20)
     cos_df = gen_garmonic_dataframe(type='cos')
 
     train_net_print_metrics(cos_df, last_index_train=270, epochs_number=60, window_size=7)
@@ -295,3 +334,25 @@ if __name__ == '__main__':
                             print_values=True, make_normalization=True)
 
 
+if __name__ == '__main__':
+    window_size = 7
+
+    df = load_dataset(regression_folder='regression_data')
+
+    start_ind = np.arange(0, window_size, 1)
+
+    norm_value = df.iloc[:, 0].max()
+    df.iloc[:, 0] /= norm_value
+
+    last_index_train = 300
+
+    train_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(last_index_train)]
+    test_ind_data = [(start_ind + i, start_ind[-1] + i + 1) for i in range(last_index_train, df.shape[0] - window_size)]
+
+    net_params = (window_size, (window_size + 1) // 2, 1)
+    print(df.shape[0])
+    # get_learning_rate_graphs(net_params, df, train_ind_data, test_ind_data, norm_value)
+    # get_training_data_length_graphs(net_params, df, norm_value)
+    # get_number_neurons_length_graphs(net_params, df, train_ind_data, test_ind_data, norm_value)
+    get_window_size_graph(net_params, df, norm_value)
+    print(test_ind_data)
